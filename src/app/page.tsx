@@ -23,6 +23,60 @@ function isTokenValid(token: string | null): boolean {
   } catch { return false; }
 }
 
+function SelectedDayModal({ date, todos, onClose, onToggle, onDiscard, onAdd }: {
+  date: string;
+  todos: Todo[];
+  onClose: () => void;
+  onToggle: (id: string, completed: boolean) => void;
+  onDiscard: (id: string) => void;
+  onAdd: (title: string, date: string) => void;
+}) {
+  const [input, setInput] = useState("");
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    onAdd(input.trim(), date);
+    setInput("");
+  };
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-end justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-t-2xl w-full max-w-lg p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-gray-800">{format(parseISO(date), "M월 d일 (EEEE)")}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+        </div>
+        <ul className="space-y-2 mb-4">
+          {todos.length === 0 && <li className="text-sm text-gray-400">할 일이 없습니다.</li>}
+          {todos.map((t) => (
+            <li key={t.id} className="flex items-center gap-2 group">
+              <button
+                onClick={() => !t.discarded && onToggle(t.id, !t.completed)}
+                className={`w-5 h-5 rounded border flex-shrink-0 flex items-center justify-center transition-colors
+                  ${t.discarded ? "border-gray-200 bg-gray-100 cursor-default" : t.completed ? "bg-green-500 border-green-500" : "border-gray-300 hover:border-green-400"}`}
+              >
+                {t.completed && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
+              </button>
+              <span className={`text-sm flex-1 ${t.completed ? "line-through text-green-600" : t.discarded ? "line-through text-gray-400" : "text-gray-800"}`}>{t.title}</span>
+              {!t.discarded && !t.completed && (
+                <button onClick={() => onDiscard(t.id)} className="text-xs text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">버리기</button>
+              )}
+            </li>
+          ))}
+        </ul>
+        <form onSubmit={submit} className="flex gap-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="새 할 일 입력..."
+            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400"
+          />
+          <button type="submit" className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors">추가</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 async function refreshAccessToken(): Promise<string | null> {
   const res = await fetch("/api/auth/refresh", { method: "POST" });
   if (!res.ok) return null;
@@ -123,6 +177,37 @@ export default function TodayPage() {
     if (res.ok) { const { todos } = await res.json(); setSelectedTodos(todos); }
   };
 
+  const handleSelectedToggle = (id: string, completed: boolean) => {
+    setSelectedTodos((p) => p.map((t) => (t.id === id ? { ...t, completed } : t)));
+    authFetch(`/api/todos/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ completed }),
+    }).then(() => { if (selectedDate) fetchMonth(calMonth); });
+  };
+
+  const handleSelectedDiscard = (id: string) => {
+    setSelectedTodos((p) => p.map((t) => (t.id === id ? { ...t, discarded: true } : t)));
+    authFetch(`/api/todos/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ discarded: true }),
+    }).then(() => { if (selectedDate) fetchMonth(calMonth); });
+  };
+
+  const handleSelectedAdd = async (title: string, date: string) => {
+    const res = await authFetch("/api/todos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, date }),
+    });
+    if (res.ok) {
+      const { todo } = await res.json();
+      setSelectedTodos((p) => [...p, todo]);
+      fetchMonth(calMonth);
+    }
+  };
+
   const handleLogout = async () => {
     localStorage.removeItem("accessToken");
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
@@ -190,25 +275,14 @@ export default function TodayPage() {
       </div>
 
       {selectedDate && (
-        <div className="fixed inset-0 bg-black/40 flex items-end justify-center z-50" onClick={() => setSelectedDate(null)}>
-          <div className="bg-white rounded-t-2xl w-full max-w-lg p-6 max-h-[70vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-800">{format(parseISO(selectedDate), "M월 d일")}</h3>
-              <button onClick={() => setSelectedDate(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
-            </div>
-            {selectedTodos.length === 0
-              ? <p className="text-sm text-gray-400">할 일이 없습니다.</p>
-              : <ul className="space-y-2">
-                  {selectedTodos.map((t) => (
-                    <li key={t.id} className="text-sm flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${t.completed ? "bg-green-500" : t.discarded ? "bg-gray-300" : "bg-amber-400"}`} />
-                      <span className={t.completed ? "line-through text-green-600" : t.discarded ? "text-gray-400 line-through" : "text-gray-800"}>{t.title}</span>
-                    </li>
-                  ))}
-                </ul>
-            }
-          </div>
-        </div>
+        <SelectedDayModal
+          date={selectedDate}
+          todos={selectedTodos}
+          onClose={() => setSelectedDate(null)}
+          onToggle={handleSelectedToggle}
+          onDiscard={handleSelectedDiscard}
+          onAdd={handleSelectedAdd}
+        />
       )}
     </main>
   );
