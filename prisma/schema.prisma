@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  todos        Todo[]
+  cronLogs     CronLog[]
+}
+
+model Todo {
+  id            String   @id @default(cuid())
+  userId        String
+  title         String
+  date          DateTime @db.Date
+  completed     Boolean  @default(false)
+  discarded     Boolean  @default(false)
+  carriedFromId String?
+  createdAt     DateTime @default(now())
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  carriedFrom   Todo?    @relation("CarryOver", fields: [carriedFromId], references: [id])
+  carriedTo     Todo[]   @relation("CarryOver")
+
+  @@unique([userId, date, carriedFromId])
+  @@index([userId, date])
+}
+
+model CronLog {
+  id          String   @id @default(cuid())
+  runAt       DateTime @default(now())
+  itemsRolled Int
+  status      String
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+}

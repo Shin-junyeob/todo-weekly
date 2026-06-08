@@ -1,0 +1,21 @@
+{
+  "name": "Todo Weekly",
+  "short_name": "TodoWeekly",
+  "description": "월~금 주간 할 일 관리 서비스",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#16a34a",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
