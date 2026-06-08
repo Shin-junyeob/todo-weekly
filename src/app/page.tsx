@@ -64,17 +64,12 @@ export default function TodayPage() {
   }, []);
 
   const fetchMonth = useCallback(async (month: Date) => {
-    const days = eachDayOfInterval({ start: startOfMonth(month), end: endOfMonth(month) });
-    const results: Record<string, DaySummary> = {};
-    await Promise.all(days.map(async (day) => {
-      const ds = format(day, "yyyy-MM-dd");
-      const res = await authFetch(`/api/todos?date=${ds}`);
-      if (res.ok) {
-        const { todos } = await res.json();
-        if (todos.length > 0) results[ds] = { total: todos.length, completed: todos.filter((t: Todo) => t.completed).length };
-      }
-    }));
-    setSummaries(results);
+    const monthStr = format(month, "yyyy-MM");
+    const res = await authFetch(`/api/todos/month?month=${monthStr}`);
+    if (res.ok) {
+      const { summaries } = await res.json();
+      setSummaries(summaries);
+    }
   }, [authFetch]);
 
   useEffect(() => { if (!loading) fetchMonth(calMonth); }, [calMonth, loading]);
@@ -89,21 +84,21 @@ export default function TodayPage() {
   };
 
   const handleToggle = async (id: string, completed: boolean) => {
-    await authFetch(`/api/todos/${id}`, {
+    setTodos((p) => p.map((t) => (t.id === id ? { ...t, completed } : t)));
+    authFetch(`/api/todos/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ completed }),
     });
-    setTodos((p) => p.map((t) => (t.id === id ? { ...t, completed } : t)));
   };
 
   const handleDiscard = async (id: string) => {
-    await authFetch(`/api/todos/${id}`, {
+    setTodos((p) => p.map((t) => (t.id === id ? { ...t, discarded: true } : t)));
+    authFetch(`/api/todos/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ discarded: true }),
     });
-    setTodos((p) => p.map((t) => (t.id === id ? { ...t, discarded: true } : t)));
   };
 
   const handleDayClick = async (ds: string) => {

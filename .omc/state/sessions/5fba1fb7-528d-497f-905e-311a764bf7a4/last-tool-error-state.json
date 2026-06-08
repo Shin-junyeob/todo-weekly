@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd /mnt/c/Users/user/Desktop/work/personal/todo-weekly && git merge .claude/worktrees/harmonic-hopping-ritchie --no-ff -m \\\"perf: optimistic toggle + single-query month calendar\\\" && git p...",
+  "error": "Exit code 1\nmerge: .claude/worktrees/harmonic-hopping-ritchie - not something we can merge",
+  "timestamp": "2026-06-08T08:50:30.911Z",
+  "retry_count": 1
+}
