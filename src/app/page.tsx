@@ -15,6 +15,14 @@ interface Todo {
 
 interface DaySummary { total: number; completed: number; }
 
+function isTokenValid(token: string | null): boolean {
+  if (!token) return false;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.exp * 1000 > Date.now() + 10_000;
+  } catch { return false; }
+}
+
 async function refreshAccessToken(): Promise<string | null> {
   const res = await fetch("/api/auth/refresh", { method: "POST" });
   if (!res.ok) return null;
@@ -47,8 +55,15 @@ export default function TodayPage() {
 
   useEffect(() => {
     if (isWeekend(today)) { router.replace("/weekend"); return; }
+    const CACHE_KEY = `todos-${dateStr}`;
+    const cached = sessionStorage.getItem(CACHE_KEY);
+    if (cached) {
+      setTodos(JSON.parse(cached));
+      setLoading(false);
+    }
     (async () => {
-      if (!localStorage.getItem("accessToken")) {
+      const token = localStorage.getItem("accessToken");
+      if (!isTokenValid(token)) {
         const refreshed = await refreshAccessToken();
         if (!refreshed) { router.push("/login"); return; }
       }
@@ -58,6 +73,7 @@ export default function TodayPage() {
       const sorted = [...data.todos].sort((a: Todo, b: Todo) =>
         a.carriedFromId ? -1 : b.carriedFromId ? 1 : 0
       );
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify(sorted));
       setTodos(sorted);
       setLoading(false);
     })();
