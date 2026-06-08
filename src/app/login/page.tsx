@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -8,7 +8,21 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      if (localStorage.getItem("accessToken")) { router.replace("/"); return; }
+      const res = await fetch("/api/auth/refresh", { method: "POST" });
+      if (res.ok) {
+        const { accessToken } = await res.json();
+        localStorage.setItem("accessToken", accessToken);
+        router.replace("/");
+      } else {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +45,8 @@ export default function LoginPage() {
     localStorage.setItem("accessToken", data.accessToken);
     router.push("/");
   };
+
+  if (loading) return <div className="flex items-center justify-center h-screen">로딩 중...</div>;
 
   return (
     <main className="min-h-screen flex items-center justify-center p-4">
