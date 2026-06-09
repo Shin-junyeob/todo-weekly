@@ -121,6 +121,12 @@ export default function TodayPage() {
         const refreshed = await refreshAccessToken();
         if (!refreshed) { router.push("/login"); return; }
       }
+      // 하루 1회만 이월 실행 (sessionStorage로 중복 방지)
+      if (!sessionStorage.getItem(`rolled-${dateStr}`)) {
+        await authFetch("/api/todos/rollover", { method: "POST" });
+        sessionStorage.setItem(`rolled-${dateStr}`, "1");
+      }
+
       const res = await authFetch(`/api/todos?date=${dateStr}`);
       if (!res.ok) return;
       const data = await res.json();
